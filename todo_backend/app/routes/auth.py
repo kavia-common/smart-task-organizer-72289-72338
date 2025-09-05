@@ -5,9 +5,14 @@ from typing import Optional, Dict, Any
 from flask import g, session
 from flask.views import MethodView
 from flask_smorest import Blueprint
-from marshmallow import Schema, fields, validate, EXCLUDE
 
 from ..models import User
+from ..schemas import (
+    LoginRequestSchema,
+    MeResponseSchema,
+    LoginResponseSchema,
+    LogoutResponseSchema,
+)
 
 # Create a Blueprint for authentication-related routes
 blp = Blueprint(
@@ -25,40 +30,6 @@ def _serialize_user(user: User) -> Dict[str, Any]:
         "username": user.username,
         "created_at": user.created_at.isoformat() if user.created_at else None,
     }
-
-
-class LoginRequestSchema(Schema):
-    """Schema for login request payload: a simple username-only login."""
-    class Meta:
-        unknown = EXCLUDE
-
-    username = fields.String(
-        required=True,
-        validate=validate.Length(min=1, max=150),
-        metadata={"description": "The username to log in with (will be created if not existing)."},
-    )
-
-
-class UserResponseSchema(Schema):
-    """Schema for the user response."""
-    id = fields.Integer(required=True, metadata={"description": "User ID"})
-    username = fields.String(required=True, metadata={"description": "Username"})
-    created_at = fields.String(required=False, allow_none=True, metadata={"description": "User creation timestamp in ISO8601"})
-
-
-class MeResponseSchema(Schema):
-    """Schema for /auth/me response."""
-    user = fields.Nested(UserResponseSchema, allow_none=True, metadata={"description": "The current user or null if not logged in"})
-
-
-class LoginResponseSchema(Schema):
-    """Schema for login response."""
-    user = fields.Nested(UserResponseSchema, required=True, metadata={"description": "The logged in user"})
-
-
-class LogoutResponseSchema(Schema):
-    """Schema for logout response."""
-    success = fields.Boolean(required=True, metadata={"description": "True if logout succeeded"})
 
 
 @blp.route("/login")

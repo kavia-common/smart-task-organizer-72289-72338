@@ -5,9 +5,20 @@ from datetime import datetime
 from flask import g, session
 from flask.views import MethodView
 from flask_smorest import Blueprint
-from marshmallow import Schema, fields, validate, EXCLUDE
 
 from ..services import tasks_service
+from ..schemas import (
+    TaskCreateSchema,
+    TaskUpdateSchema,
+    TaskResponseSchema,
+    TaskDetailResponseSchema,
+    TasksListQuerySchema,
+    SuccessSchema,
+    CompleteActionSchema,
+    SubtaskCreateSchema,
+    SubtaskUpdateSchema,
+    SubtaskResponseSchema,
+)
 
 
 blp = Blueprint(
@@ -24,112 +35,6 @@ def _require_user_id() -> int:
     if not user_id:
         blp.abort(401, message="Not authenticated")
     return int(user_id)
-
-
-# ===== Schemas =====
-
-class TaskBaseSchema(Schema):
-    class Meta:
-        unknown = EXCLUDE
-
-    title = fields.String(required=True, validate=validate.Length(min=1, max=255))
-    description = fields.String(required=False, allow_none=True)
-    priority = fields.Integer(required=False, validate=validate.Range(min=0))
-    estimated_minutes = fields.Integer(required=False, validate=validate.Range(min=0))
-    due_at = fields.DateTime(required=False, allow_none=True)
-
-
-class TaskCreateSchema(TaskBaseSchema):
-    """Schema for creating a task."""
-    title = fields.String(required=True, validate=validate.Length(min=1, max=255), metadata={"description": "Task title"})
-
-
-class TaskUpdateSchema(Schema):
-    class Meta:
-        unknown = EXCLUDE
-
-    title = fields.String(required=False, allow_none=True, validate=validate.Length(min=1, max=255))
-    description = fields.String(required=False, allow_none=True)
-    priority = fields.Integer(required=False, allow_none=True)
-    estimated_minutes = fields.Integer(required=False, allow_none=True)
-    due_at = fields.DateTime(required=False, allow_none=True)
-
-
-class TaskResponseSchema(Schema):
-    id = fields.Integer(required=True)
-    title = fields.String(required=True)
-    description = fields.String(allow_none=True)
-    priority = fields.Integer(required=True)
-    estimated_minutes = fields.Integer(required=True)
-    due_at = fields.String(allow_none=True)
-    is_completed = fields.Boolean(required=True)
-    created_at = fields.String(allow_none=True)
-    updated_at = fields.String(allow_none=True)
-
-
-class TaskDetailResponseSchema(TaskResponseSchema):
-    subtasks = fields.List(fields.Dict(), required=True)
-
-
-class TasksListQuerySchema(Schema):
-    search = fields.String(required=False)
-    priority = fields.Integer(required=False)
-    due_within_days = fields.Integer(required=False)
-    sort_by = fields.String(required=False, validate=validate.OneOf(["priority", "due_at", "estimated_minutes", "created_at"]))
-
-
-class SuccessSchema(Schema):
-    success = fields.Boolean(required=True)
-
-
-class CompleteActionSchema(Schema):
-    """Schema for completion action on tasks/subtasks."""
-    class Meta:
-        unknown = EXCLUDE
-
-    complete = fields.Boolean(required=False, missing=True)
-    cascade = fields.Boolean(required=False, missing=False)
-
-
-# Subtask schemas
-
-class SubtaskBaseSchema(Schema):
-    class Meta:
-        unknown = EXCLUDE
-
-    title = fields.String(required=True, validate=validate.Length(min=1, max=255))
-    description = fields.String(required=False, allow_none=True)
-    parent_subtask_id = fields.Integer(required=False, allow_none=True)
-    order_index = fields.Integer(required=False, allow_none=True, validate=validate.Range(min=0))
-
-
-class SubtaskCreateSchema(SubtaskBaseSchema):
-    pass
-
-
-class SubtaskUpdateSchema(Schema):
-    class Meta:
-        unknown = EXCLUDE
-
-    title = fields.String(required=False, allow_none=True, validate=validate.Length(min=1, max=255))
-    description = fields.String(required=False, allow_none=True)
-    parent_subtask_id = fields.Integer(required=False, allow_none=True)
-    order_index = fields.Integer(required=False, allow_none=True, validate=validate.Range(min=0))
-
-
-class SubtaskResponseSchema(Schema):
-    id = fields.Integer(required=True)
-    task_id = fields.Integer(required=True)
-    parent_subtask_id = fields.Integer(allow_none=True)
-    title = fields.String(required=True)
-    description = fields.String(allow_none=True)
-    is_completed = fields.Boolean(required=True)
-    order_index = fields.Integer(required=True)
-    created_at = fields.String(allow_none=True)
-    updated_at = fields.String(allow_none=True)
-    effective_priority = fields.Integer(allow_none=True)
-    effective_estimated_minutes = fields.Integer(allow_none=True)
-    effective_due_at = fields.String(allow_none=True)
 
 
 # ===== Routes =====
