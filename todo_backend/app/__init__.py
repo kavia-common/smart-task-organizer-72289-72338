@@ -1,3 +1,7 @@
+from __future__ import annotations
+
+import os
+
 from flask import Flask, g
 from flask_cors import CORS
 from flask_smorest import Api
@@ -6,8 +10,35 @@ from flask_smorest import Api
 app = Flask(__name__)
 app.url_map.strict_slashes = False
 
-# CORS config
-CORS(app, resources={r"/*": {"origins": "*"}})
+# Session / Security configuration using environment variables for flexibility
+# Do not hard-code secrets; use FLASK_SECRET_KEY in environment when possible.
+app.secret_key = os.getenv("FLASK_SECRET_KEY", "dev-secret-change-me")
+
+# Session cookie settings suitable for development. These can be overridden by env vars.
+# For cross-site cookies in development with HTTPS frontends, you may need:
+#   SESSION_COOKIE_SAMESITE=None and SESSION_COOKIE_SECURE=True
+# Defaults are chosen for local dev; override as needed.
+app.config["SESSION_COOKIE_NAME"] = os.getenv("SESSION_COOKIE_NAME", "todo_session")
+app.config["SESSION_COOKIE_SAMESITE"] = os.getenv("SESSION_COOKIE_SAMESITE", "Lax")
+app.config["SESSION_COOKIE_SECURE"] = os.getenv("SESSION_COOKIE_SECURE", "False").lower() == "true"
+app.config["SESSION_COOKIE_HTTPONLY"] = os.getenv("SESSION_COOKIE_HTTPONLY", "True").lower() == "true"
+app.config["PREFERRED_URL_SCHEME"] = os.getenv("PREFERRED_URL_SCHEME", "http")
+
+# CORS configuration
+# When using credentials (cookies), Access-Control-Allow-Origin cannot be "*".
+# We default to common local dev origins and allow override with FRONTEND_ORIGIN (comma-separated list).
+default_origins = [
+    "http://localhost:3000",
+    "http://127.0.0.1:3000",
+]
+extra_origins = [o.strip() for o in os.getenv("FRONTEND_ORIGIN", "").split(",") if o.strip()]
+cors_origins = list({*default_origins, *extra_origins}) if extra_origins else default_origins
+
+CORS(
+    app,
+    resources={r"/*": {"origins": cors_origins}},
+    supports_credentials=True,
+)
 
 # OpenAPI / API docs config
 app.config["API_TITLE"] = "My Flask API"
@@ -42,6 +73,9 @@ def _db_teardown(exception):
 
 
 # Register blueprints and API after DB init
-from .routes.health import blp  # noqa: E402
-api = Api(app)
-api.register_blueprint(blp)
+from .routes.health import blp as health_blp  # noqa: E402
+from .routes.auth import blp as auth_blp  # noqa: E402
+
+api = Api(app, spec_kwargs={"servers": [{"url": "/"}]})
+api.register_blueprint(health_blp)
+api.register_blueprint(auth_blp)
