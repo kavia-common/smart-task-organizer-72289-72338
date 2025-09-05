@@ -75,7 +75,11 @@ def _db_teardown(exception):
 # Register blueprints and API after DB init
 from .routes.health import blp as health_blp  # noqa: E402
 from .routes.auth import blp as auth_blp  # noqa: E402
+from .routes.tasks import blp as tasks_blp  # noqa: E402
+from .routes.tasks import subtasks_blp as subtasks_blp  # noqa: E402
 
 api = Api(app, spec_kwargs={"servers": [{"url": "/"}]})
 api.register_blueprint(health_blp)
 api.register_blueprint(auth_blp)
+api.register_blueprint(tasks_blp)
+api.register_blueprint(subtasks_blp)
